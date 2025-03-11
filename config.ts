@@ -19,4 +19,12 @@ const authToken = await sep10.authenticate({ accountKp: authKey });
 
 const sep12 = await anchor.sep12(authToken);
 
-export {wallet, horizon, anchor,authToken,sep10,authKey,keypair,sep12} ;
+const sep6 = anchor.sep6();
+
+const info = await sep6.info();
+
+console.log(info);
+
+const watcher = anchor.sep6().watcher();
+
+export {wallet, horizon, anchor,authToken,sep10,authKey,keypair,sep12,sep6,watcher} ;

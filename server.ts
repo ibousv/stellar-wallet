@@ -1,4 +1,4 @@
-import { wallet, horizon, anchor,authToken,sep10,authKey,keypair, sep12} from "./config";
+import { wallet, horizon, anchor,authToken,sep10,authKey,keypair, sep12,sep6,watcher} from "./config";
 
 console.log("Public Key:", keypair.publicKey());
 console.log("Secret Key:", keypair.secret());
@@ -18,7 +18,7 @@ Bun.serve({
                   })
         }
     },
-
+       
     //http://localhost:3003/api/v1/auth?account=GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
         "/api/v1/auth": {
@@ -105,6 +105,169 @@ fetch("http://localhost:3003/api/v1/kyc", {
                 }
             },
         },
+
+        "/api/v1/deposit": {
+            POST: async (req: Request) => {
+                const { account, asset_code } = await req.json();
+        
+                if (!account || !asset_code) {
+                    return new Response(JSON.stringify({ error: "Missing account or asset_code" }), { status: 400 });
+                }
+        
+                const deposit = await sep6.deposit({
+                    authToken,
+                    params: {
+                        asset_code,
+                        account,
+                    },
+                });
+         
+                return new Response(JSON.stringify(deposit), {
+                    headers: { "Content-Type": "application/json" },
+                });
+            },
+        },
+        
+        "/api/v1/withdraw": {
+    POST: async (req: Request) => {
+        try {
+            const { asset_code, account, type, dest, dest_extra, authToken } = await req.json();
+
+            if (!asset_code || !account || !type || !dest || !authToken) {
+                return new Response(JSON.stringify({ error: "Missing required parameters" }), { status: 400 });
+            }
+
+            const resp = await sep6.withdraw({
+                authToken,
+                params: {
+                    asset_code,
+                    account,
+                    type,
+                    dest,
+                    dest_extra,
+                },
+            });
+
+            return new Response(JSON.stringify(resp), {
+                headers: { "Content-Type": "application/json" },
+                status: 200,
+            });
+
+        } catch (error) {
+            console.error("Error processing withdrawal:", error);
+            return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
+        }
+    },
+        },
+
+        "/api/v1/deposit-exchange": {
+    POST: async (req: Request) => {
+        try {
+            // Récupérer les paramètres de la requête JSON
+            const { destination_asset, source_asset, amount, authToken } = await req.json();
+
+            // Vérifier que tous les paramètres requis sont fournis
+            if (!destination_asset || !source_asset || !amount || !authToken) {
+                return new Response(JSON.stringify({ error: "Missing required parameters" }), { status: 400 });
+            }
+
+            // Appel à sep6.depositExchange
+            const resp = await sep6.depositExchange({
+                authToken,
+                params: {
+                    destination_asset,
+                    source_asset,
+                    amount,
+                },
+            });
+
+            // Retourner la réponse réussie
+            return new Response(JSON.stringify(resp), {
+                headers: { "Content-Type": "application/json" },
+                status: 200,
+            });
+
+        } catch (error) {
+            console.error("Error processing deposit exchange:", error);
+            return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
+        }
+    },
+        },
+
+        "/api/v1/withdraw-exchange": {
+    POST: async (req: Request) => {
+        try {
+            // Récupérer les paramètres de la requête JSON
+            const { destination_asset, source_asset, amount, type, authToken } = await req.json();
+
+            // Vérifier que tous les paramètres requis sont fournis
+            if (!destination_asset || !source_asset || !amount || !type || !authToken) {
+                return new Response(JSON.stringify({ error: "Missing required parameters" }), { status: 400 });
+            }
+
+            // Appel à sep6.withdrawExchange
+            const resp = await sep6.withdrawExchange({
+                authToken,
+                params: {
+                    destination_asset,
+                    source_asset,
+                    amount,
+                    type,
+                },
+            });
+
+            // Retourne la réponse normale de l’ancre SEP-6
+            return new Response(JSON.stringify(resp), {
+                headers: { "Content-Type": "application/json" },
+                status: 200,
+            });
+
+        } catch (error) {
+            console.error("Error processing withdraw exchange:", error);
+            return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
+        }
+    },
+        },
+
+        "/api/v1/watch-transaction": {
+    POST: async (req: Request) => {
+        try {
+            // Récupérer les paramètres de la requête JSON
+            const { authToken, assetCode, txId } = await req.json();
+
+            // Vérifier que les paramètres requis sont fournis
+            if (!authToken || !assetCode || !txId) {
+                return new Response(JSON.stringify({ error: "Missing required parameters" }), { status: 400 });
+            }
+
+            // Création du watcher pour suivre la transaction SEP-6
+            const { stop, refresh } = watcher.watchOneTransaction({
+                authToken,
+                assetCode,
+                id: txId,
+                onSuccess: (tx) => {
+                    console.log("Transaction successful:", tx);
+                },
+                onMessage: (message) => {
+                    console.log("Transaction update:", message);
+                },
+                onError: (error) => {
+                    console.error("Transaction error:", error);
+                },
+            });
+
+            return new Response(JSON.stringify({ message: "Watcher started", txId }), {
+                headers: { "Content-Type": "application/json" },
+                status: 200,
+            });
+
+        } catch (error) {
+            console.error("Error starting watcher:", error);
+            return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500 });
+        }
+    },
+        },
+    
     
 }})
 console.log("The server is running on port 3003");
