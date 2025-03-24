@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@stellar/typescript-wallet-sdk": "^1.9.0",
+    "elysia": "^1.2.25",
     "toml": "^3.0.0"
   }
 }
